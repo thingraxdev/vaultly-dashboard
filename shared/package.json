@@ -1,0 +1,17 @@
+{
+  "name": "@cookie-injection/shared",
+  "version": "1.0.0",
+  "description": "Shared types and utilities for Cookie Injection Management System",
+  "main": "index.ts",
+  "types": "index.ts",
+  "private": true,
+  "scripts": {
+    "build": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.3"
+  },
+  "dependencies": {
+    "@cookie-injection/shared": "file:"
+  }
+}

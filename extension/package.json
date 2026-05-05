@@ -1,0 +1,16 @@
+{
+  "name": "cookie-injection-extension",
+  "version": "1.0.0",
+  "description": "Chrome extension for shared account access via cookie injection",
+  "main": "src/background.js",
+  "scripts": {
+    "build": "echo 'Extension is ready (no build required for MV3)'",
+    "dev": "echo 'Load manifest.json in chrome://extensions to test'"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.3"
+  },
+  "dependencies": {
+    "@cookie-injection/shared": "file:../shared"
+  }
+}
