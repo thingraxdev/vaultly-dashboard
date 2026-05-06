@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Vaultly",
   "version": "1.3.0",
-  "description": "Secure shared account access via automatic cookie injection",
+  "description": "Secure shared account access with one-click login",
   "permissions": [
     "cookies",
     "storage",

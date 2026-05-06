@@ -167,12 +167,12 @@ export default function PortalDashboardPage() {
               </svg>
             </div>
             <div>
-              <p className="text-blue-900 font-semibold mb-1">Browser Extension Required</p>
+              <p className="text-blue-900 font-semibold mb-1">Vaultly Browser Extension Required</p>
               <p className="text-blue-700 text-sm mb-2">
-                To launch resources with automatic login, install the Cookie Injection Manager extension and configure it with your dashboard URL.
+                To launch resources with one-click access, install the Vaultly browser extension from your administrator.
               </p>
               <p className="text-blue-600 text-xs">
-                After installing, set NEXT_PUBLIC_EXTENSION_ID in your environment to the extension&apos;s ID.
+                Contact your admin if you haven&apos;t received the extension installation link.
               </p>
             </div>
           </div>

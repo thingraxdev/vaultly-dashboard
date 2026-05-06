@@ -237,7 +237,7 @@ export default function ResourcesPage() {
       <div className="flex justify-between items-start mb-8">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Resources Management</h1>
-          <p className="text-gray-500 mt-2">Add and manage resources for cookie injection</p>
+          <p className="text-gray-500 mt-2">Add and manage resources for secure access</p>
         </div>
         <button
           onClick={() => {
