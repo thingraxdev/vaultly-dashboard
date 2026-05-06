@@ -25,78 +25,44 @@ export default function AccessPage() {
   const [pendingBulk, setPendingBulk] = useState<{ toolId: string; action: "grant" | "revoke"; toolName: string } | null>(null);
 
   useEffect(() => {
-    Promise.all([fetchUsers(), fetchTools(), fetchAccess()]);
+    fetchAccessData();
   }, []);
 
   /**
-   * Fetch all users
+   * Fetch all data in a single API call
    */
-  const fetchUsers = async () => {
-    try {
-      // Use API route with service role to bypass RLS
-      const response = await fetch("/api/admin/users");
-      if (!response.ok) {
-        throw new Error("Failed to fetch users");
-      }
-      const { users: data } = await response.json();
-      // Filter to only active users for access control
-      setUsers((data || []).filter((u: User) => u.is_active));
-    } catch (err) {
-      console.error("Failed to load users:", err);
-    }
-  };
-
-  /**
-   * Fetch all tools
-   */
-  const fetchTools = async () => {
-    try {
-      const { data, error } = await supabase.from("tools").select("*").eq("is_active", true);
-      if (error) throw error;
-      setTools(data || []);
-    } catch (err) {
-      console.error("Failed to load tools:", err);
-    }
-  };
-
-  /**
-   * Fetch all access grants and populate access matrix
-   */
-  const fetchAccess = async () => {
+  const fetchAccessData = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase.from("access_grants").select("*").eq("is_active", true);
-
-      if (error) throw error;
-
-      const accessMatrix: Record<string, Record<string, boolean>> = {};
-      const expiries: Record<string, string> = {};
-
-      (data || []).forEach((grant) => {
-        if (!accessMatrix[grant.user_id]) {
-          accessMatrix[grant.user_id] = {};
-        }
-        accessMatrix[grant.user_id][grant.tool_id] = true;
-
-        if (grant.expires_at) {
-          expiries[`${grant.user_id}-${grant.tool_id}`] = grant.expires_at;
-        }
-      });
-
-      setAccess(accessMatrix);
-      setExpiryDates(expiries);
+      const response = await fetch("/api/admin/access", { cache: "no-store" });
+      if (!response.ok) throw new Error("Failed to fetch access data");
+      
+      const data = await response.json();
+      setUsers(data.users || []);
+      setTools(data.tools || []);
+      setAccess(data.access || {});
+      setExpiryDates(data.expiryDates || {});
     } catch (err) {
-      console.error("Failed to load access grants:", err);
+      console.error("Failed to load access data:", err);
     } finally {
       setLoading(false);
     }
   };
 
   /**
-   * Toggle access grant for user/tool
+   * Toggle access grant for user/tool (optimistic update)
    */
   const handleToggleAccess = async (userId: string, toolId: string) => {
     const hasAccess = access[userId]?.[toolId] || false;
+    
+    // Optimistic update
+    setAccess(prev => ({
+      ...prev,
+      [userId]: {
+        ...prev[userId],
+        [toolId]: !hasAccess,
+      },
+    }));
 
     try {
       if (hasAccess) {
@@ -132,8 +98,15 @@ export default function AccessPage() {
       }
 
       setSuccess(hasAccess ? "Access revoked" : "Access granted");
-      await fetchAccess();
     } catch (err) {
+      // Revert on error
+      setAccess(prev => ({
+        ...prev,
+        [userId]: {
+          ...prev[userId],
+          [toolId]: hasAccess,
+        },
+      }));
       console.error("Failed to toggle access:", err);
     }
   };
@@ -150,8 +123,11 @@ export default function AccessPage() {
         .eq("tool_id", toolId);
 
       if (error) throw error;
+      setExpiryDates(prev => ({
+        ...prev,
+        [`${userId}-${toolId}`]: expiryDate,
+      }));
       setSuccess("Expiry date updated");
-      await fetchAccess();
     } catch (err) {
       console.error("Failed to update expiry:", err);
     }
@@ -161,6 +137,14 @@ export default function AccessPage() {
    * Bulk grant access to all users
    */
   const handleBulkGrant = async (toolId: string) => {
+    // Optimistic update
+    const newAccess = { ...access };
+    users.forEach(u => {
+      if (!newAccess[u.id]) newAccess[u.id] = {};
+      newAccess[u.id][toolId] = true;
+    });
+    setAccess(newAccess);
+    
     try {
       const grants = users
         .filter((u) => !access[u.id]?.[toolId])
@@ -179,9 +163,9 @@ export default function AccessPage() {
       }
 
       setSuccess("Access granted to all users");
-      await fetchAccess();
     } catch (err) {
       console.error("Bulk grant failed:", err);
+      await fetchAccessData(); // Revert by refetching
     }
   };
 
@@ -189,6 +173,15 @@ export default function AccessPage() {
    * Bulk revoke access from all users
    */
   const handleBulkRevoke = async (toolId: string) => {
+    // Optimistic update
+    const newAccess = { ...access };
+    users.forEach(u => {
+      if (newAccess[u.id]) {
+        newAccess[u.id][toolId] = false;
+      }
+    });
+    setAccess(newAccess);
+    
     try {
       const { error } = await supabase
         .from("access_grants")
@@ -205,9 +198,9 @@ export default function AccessPage() {
         .is("session_end", null);
 
       setSuccess("Access revoked from all users");
-      await fetchAccess();
     } catch (err) {
       console.error("Bulk revoke failed:", err);
+      await fetchAccessData(); // Revert by refetching
     }
   };
 

@@ -75,10 +75,18 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       };
     });
 
-    return NextResponse.json({
-      tools: rows,
-      message: revoked.length ? `Access to ${revoked[0]} has been removed` : "",
-    });
+    return NextResponse.json(
+      {
+        tools: rows,
+        message: revoked.length ? `Access to ${revoked[0]} has been removed` : "",
+      },
+      {
+        headers: {
+          "Cache-Control": "no-store, no-cache, must-revalidate",
+          "Pragma": "no-cache",
+        },
+      }
+    );
   } catch {
     return NextResponse.json({ error: "Failed to fetch portal tools" }, { status: 500 });
   }

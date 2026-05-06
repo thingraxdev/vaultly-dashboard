@@ -47,16 +47,24 @@ export async function GET(): Promise<NextResponse> {
       toolName: toolMap.get(log.tool_id) || "Unknown",
     }));
 
-    return NextResponse.json({
-      metrics: {
-        totalUsers: users.count || 0,
-        activeUsersToday,
-        totalLaunchesToday: todayLogs.count || 0,
-        totalTools: tools.count || 0,
+    return NextResponse.json(
+      {
+        metrics: {
+          totalUsers: users.count || 0,
+          activeUsersToday,
+          totalLaunchesToday: todayLogs.count || 0,
+          totalTools: tools.count || 0,
+        },
+        launchesPerTool,
+        recentActivity,
       },
-      launchesPerTool,
-      recentActivity,
-    });
+      {
+        headers: {
+          "Cache-Control": "no-store, no-cache, must-revalidate",
+          "Pragma": "no-cache",
+        },
+      }
+    );
   } catch {
     return NextResponse.json({ error: "Failed to fetch dashboard stats" }, { status: 500 });
   }

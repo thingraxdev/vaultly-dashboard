@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabase";
 import type { User, Tool } from "@/shared/types";
 import Modal from "@/components/Modal";
 import Tooltip from "@/components/Tooltip";
@@ -29,68 +28,32 @@ export default function UsersPage() {
   const [pendingToggle, setPendingToggle] = useState<{ id: string; isActive: boolean } | null>(null);
 
   useEffect(() => {
-    Promise.all([fetchUsers()]);
+    fetchUsers();
   }, []);
 
   /**
-   * Fetch all users
+   * Fetch all users with their access grants in parallel
    */
-  const fetchUsers = async () => {
+  const fetchUsers = async (showLoader = true) => {
     try {
-      setLoading(true);
+      if (showLoader) setLoading(true);
       
       // Use API route with service role to bypass RLS
-      const response = await fetch("/api/admin/users");
+      const response = await fetch("/api/admin/users", { cache: "no-store" });
       if (!response.ok) {
         throw new Error("Failed to fetch users");
       }
-      const { users: data } = await response.json();
+      const { users: data, userAccess: accessData } = await response.json();
 
       setUsers(data || []);
-
-      // Fetch access grants for each user
-      if (data) {
-        for (const user of data) {
-          await fetchUserTools(user.id);
-        }
+      if (accessData) {
+        setUserAccess(accessData);
       }
     } catch (err) {
       setError("Failed to load users");
       console.error(err);
     } finally {
       setLoading(false);
-    }
-  };
-
-  /**
-   * Fetch tools available to a user
-   */
-  const fetchUserTools = async (userId: string) => {
-    try {
-      const { data: grants, error } = await supabase
-        .from("access_grants")
-        .select("tool_id")
-        .eq("user_id", userId)
-        .eq("is_active", true);
-
-      if (error) throw error;
-
-      const toolIds = Array.from(new Set((grants || []).map((ag) => ag.tool_id)));
-      if (toolIds.length === 0) {
-        setUserAccess((prev) => ({ ...prev, [userId]: [] }));
-        return;
-      }
-
-      const { data: toolRows, error: toolsError } = await supabase
-        .from("tools")
-        .select("id, name, url, cookie_domain, cookies_json, icon_url, created_at, is_active, cookie_updated_at, max_concurrent_users")
-        .in("id", toolIds);
-
-      if (toolsError) throw toolsError;
-
-      setUserAccess((prev) => ({ ...prev, [userId]: (toolRows || []) as Tool[] }));
-    } catch (err) {
-      console.error("Failed to fetch user tools:", err);
     }
   };
 
@@ -133,23 +96,25 @@ export default function UsersPage() {
   };
 
   /**
-   * Toggle user active status
+   * Toggle user active status (optimistic update)
    */
   const handleToggleActive = async (id: string, isActive: boolean) => {
+    // Optimistic update
+    const previousUsers = users;
+    setUsers(users.map(u => u.id === id ? { ...u, is_active: !isActive } : u));
+    
     try {
-      const { error } = await supabase.from("users").update({ is_active: !isActive }).eq("id", id);
-      if (error) throw error;
+      const response = await fetch("/api/admin/toggle-user", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, isActive }),
+      });
 
-      // If deactivating user, end all their active sessions
-      if (isActive) {
-        await supabase
-          .from("active_sessions")
-          .update({ session_end: new Date().toISOString() })
-          .eq("user_id", id)
-          .is("session_end", null);
+      if (!response.ok) {
+        // Revert on error
+        setUsers(previousUsers);
+        throw new Error("Failed to update user");
       }
-
-      await fetchUsers();
     } catch (err) {
       setError("Failed to update user");
       console.error(err);
@@ -157,9 +122,13 @@ export default function UsersPage() {
   };
 
   /**
-   * Delete user
+   * Delete user (optimistic update)
    */
   const handleDeleteUser = async (id: string) => {
+    // Optimistic update - remove from UI immediately
+    const previousUsers = users;
+    setUsers(users.filter(u => u.id !== id));
+    
     try {
       const response = await fetch("/api/admin/delete-user", {
         method: "DELETE",
@@ -169,11 +138,12 @@ export default function UsersPage() {
 
       const result = await response.json();
       if (!response.ok) {
+        // Revert on error
+        setUsers(previousUsers);
         throw new Error(result.error || "Failed to delete user");
       }
 
       setSuccess("User deleted successfully");
-      await fetchUsers();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to delete user");
       console.error(err);
