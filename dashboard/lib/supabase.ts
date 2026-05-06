@@ -33,7 +33,12 @@ export function getSupabaseServiceRole() {
     if (!serviceRoleKey) {
       throw new Error("SUPABASE_SERVICE_ROLE_KEY not configured");
     }
-    supabaseServiceRole = createClient<Database>(dashboardSupabaseUrl, serviceRoleKey);
+    supabaseServiceRole = createClient<Database>(dashboardSupabaseUrl, serviceRoleKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+    });
   }
   return supabaseServiceRole;
 }

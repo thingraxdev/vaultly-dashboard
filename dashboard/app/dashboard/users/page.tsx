@@ -161,21 +161,17 @@ export default function UsersPage() {
    */
   const handleDeleteUser = async (id: string) => {
     try {
-      // End all active sessions for this user
-      await supabase
-        .from("active_sessions")
-        .update({ session_end: new Date().toISOString() })
-        .eq("user_id", id)
-        .is("session_end", null);
+      const response = await fetch("/api/admin/delete-user", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
+      });
 
-      // First delete access grants
-      await supabase.from("access_grants").delete().eq("user_id", id);
-      // Then delete user
-      const { data: deletedRows, error } = await supabase.from("users").delete().eq("id", id).select("id");
-      if (error) throw error;
-      if (!deletedRows || deletedRows.length === 0) {
-        throw new Error("Delete was blocked by permissions (RLS). User was not removed.");
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || "Failed to delete user");
       }
+
       setSuccess("User deleted successfully");
       await fetchUsers();
     } catch (err) {
