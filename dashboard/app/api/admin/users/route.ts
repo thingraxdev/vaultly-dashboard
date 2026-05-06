@@ -8,6 +8,15 @@ import { getSupabaseServiceRole } from "@/lib/supabase";
  */
 export async function GET(): Promise<NextResponse> {
   try {
+    // Check if service role key is configured
+    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      console.error("SUPABASE_SERVICE_ROLE_KEY is not configured");
+      return NextResponse.json(
+        { error: "Server configuration error: Service role key missing" },
+        { status: 500 }
+      );
+    }
+
     const supabase = getSupabaseServiceRole();
 
     // Fetch users and access grants in parallel
