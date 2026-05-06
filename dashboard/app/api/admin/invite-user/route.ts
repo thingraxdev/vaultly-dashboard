@@ -13,8 +13,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
 
     const supabase = getSupabaseServiceRole();
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || request.nextUrl.origin;
     const { error } = await supabase.auth.admin.inviteUserByEmail(email, {
-      redirectTo: `${request.nextUrl.origin}/portal/set-password`,
+      redirectTo: `${appUrl}/portal/set-password`,
     });
 
     if (error) {

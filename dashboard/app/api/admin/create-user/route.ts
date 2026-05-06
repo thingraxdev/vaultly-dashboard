@@ -78,8 +78,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
 
     // Send invite. If this fails, rollback inserted user for atomic behavior.
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || request.nextUrl.origin;
     const { error: inviteError } = await supabase.auth.admin.inviteUserByEmail(normalizedEmail, {
-      redirectTo: `${request.nextUrl.origin}/portal/set-password`,
+      redirectTo: `${appUrl}/portal/set-password`,
     });
 
     if (inviteError) {
